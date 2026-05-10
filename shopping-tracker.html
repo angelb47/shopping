@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#0f1117"/>
+  <title>🛒 Shopping Tracker</title>
+  <style>
+    :root {
+      --font: -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --mono: 'Courier New', monospace;
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --card:      #1e2235;
+      --card2:     #252940;
+      --accent:    #4ade80;
+      --accentDim: #0f2d1a;
+      --danger:    #f87171;
+      --dangerDim: #3b0f0f;
+      --warn:      #fbbf24;
+      --warnDim:   #3a2500;
+      --text:      #f0f4ff;
+      --muted:     #8892b0;
+      --border:    #2e3452;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--font); min-height: 100vh;
+      overscroll-behavior: none;
+    }
+    #app {
+      max-width: 500px; margin: 0 auto;
+      min-height: 100vh; display: flex;
+      flex-direction: column; padding-bottom: 56px;
+    }
+    input:focus { outline: none; border-color: var(--accent) !important; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* ══════════ HEADER ══════════ */
+    #header {
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      padding: 14px 16px 12px;
+      position: sticky; top: 0; z-index: 10;
+    }
+    #header-top {
+      display: flex; align-items: center;
+      gap: 6px; margin-bottom: 12px;
+    }
+    #logo { font-size: 26px; flex-shrink: 0; }
+    #trip-title {
+      flex: 1; min-width: 0;
+      background: transparent; border: none;
+      color: var(--text); font-size: 18px;
+      font-weight: 700; font-family: var(--font);
+    }
+    .icon-btn {
+      background: transparent; border: none;
+      font-size: 21px; cursor: pointer;
+      padding: 4px; flex-shrink: 0; line-height: 1;
+    }
+
+    /* totals chips */
+    #totals-bar {
+      display: flex; justify-content: space-around;
+      background: var(--card); border-radius: 12px;
+      padding: 10px 8px; margin-bottom: 10px;
+    }
+    .chip { text-align: center; }
+    .chip-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .chip-val  { font-size: 16px; font-weight: 700; font-family: var(--mono); margin-top: 3px; }
+
+    /* progress */
+    #prog-wrap { display: flex; align-items: center; gap: 10px; }
+    #prog-track { flex: 1; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    #prog-fill  { height: 100%; background: var(--accent); border-radius: 99px; width: 0%; transition: width 0.3s ease; }
+    #prog-lbl   { font-size: 11px; color: var(--muted); white-space: nowrap; font-family: var(--mono); }
+
+    /* ══════════ BOOKMARK TIP BANNER ══════════ */
+    #bookmark-tip {
+      margin: 10px 12px 0;
+      background: var(--warnDim);
+      border: 1px solid rgba(251,191,36,0.35);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    #bookmark-tip .tip-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    #bookmark-tip .tip-text { font-size: 12px; color: var(--warn); line-height: 1.55; flex: 1; }
+    #bookmark-tip .tip-text b { font-weight: 700; }
+    #tip-close {
+      background: transparent; border: none;
+      color: var(--warn); font-size: 18px;
+      cursor: pointer; flex-shrink: 0; padding: 0 2px; line-height: 1;
+    }
+
+    /* ══════════ ITEM CARDS ══════════ */
+    #item-list {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 12px 12px 4px;
+    }
+    .item-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; transition: opacity 0.25s;
+    }
+    .item-card.in-basket { opacity: 0.55; background: var(--accentDim); border-color: rgba(74,222,128,0.2); }
+
+    .card-top {
+      display: flex; align-items: center;
+      gap: 10px; padding: 10px 12px 8px;
+    }
+    .tick {
+      width: 28px; height: 28px; flex-shrink: 0;
+      border-radius: 8px; border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px; font-weight: 700;
+      color: transparent; background: transparent;
+      transition: all 0.15s; user-select: none;
+    }
+    .tick.checked { border-color: var(--accent); background: var(--accentDim); color: var(--accent); }
+
+    .desc-input {
+      flex: 1; min-width: 0;
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 15px;
+      font-family: var(--font); padding: 8px 10px;
+    }
+    .desc-input.struck { text-decoration: line-through; color: var(--muted); }
+    .desc-input::placeholder { color: var(--muted); }
+
+    .del-btn {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: var(--dangerDim); color: var(--danger);
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 22px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .card-nums { display: flex; align-items: center; gap: 6px; padding: 0 12px 10px; }
+    .num-group { display: flex; flex-direction: column; gap: 3px; }
+    .num-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; text-align: center; }
+    .num-input {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-size: 14px; font-family: var(--mono);
+      text-align: center; padding: 7px 4px;
+    }
+    .num-input.qty-in   { width: 52px; }
+    .num-input.price-in { width: 80px; }
+    .diff-group { display: flex; flex-direction: column; gap: 3px; margin-left: auto; text-align: right; }
+    .diff-val { font-size: 15px; font-weight: 700; font-family: var(--mono); color: var(--border); padding: 7px 4px; }
+    .dot-bar { height: 3px; border-radius: 0 0 14px 14px; background: var(--border); transition: background 0.2s; }
+
+    /* ══════════ BUTTONS ROW ══════════ */
+    #btn-row {
+      display: flex; gap: 8px;
+      margin: 8px 12px 4px;
+    }
+    #add-btn {
+      flex: 1;
+      background: var(--accentDim); color: var(--accent);
+      border: 1px solid rgba(74,222,128,0.3);
+      border-radius: 14px; padding: 15px;
+      font-size: 16px; font-weight: 700;
+      font-family: var(--font); cursor: pointer;
+    }
+    #share-btn {
+      background: #1a2340; color: #7dd3fc;
+      border: 1px solid rgba(125,211,252,0.3);
+      border-radius: 14px; padding: 15px 18px;
+      font-size: 20px; cursor: pointer;
+      flex-shrink: 0; line-height: 1;
+    }
+
+    /* ══════════ SUMMARY ══════════ */
+    #summary {
+      margin: 4px 12px 0;
+      background: var(--card); border-radius: 14px;
+      padding: 14px 16px; border: 1px solid var(--border);
+    }
+    .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
+    .sum-lbl { font-size: 13px; color: var(--muted); }
+    .sum-lbl.lg { font-size: 16px; font-weight: 600; color: var(--text); }
+    .sum-val { font-size: 14px; font-weight: 700; font-family: var(--mono); }
+    .sum-val.lg { font-size: 20px; }
+    .divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+    /* ══════════ EXPORT SHEET ══════════ */
+    #export-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 50;
+      align-items: flex-end; justify-content: center;
+    }
+    #export-overlay.open { display: flex; }
+    #export-sheet {
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      padding: 20px 16px 36px; width: 100%; max-width: 500px;
+      border-top: 2px solid var(--border);
+    }
+    #export-sheet h3 { font-size: 17px; margin-bottom: 14px; color: var(--text); }
+    #export-text {
+      width: 100%; background: var(--card); color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px;
+      font-size: 12px; font-family: var(--mono);
+      padding: 12px; min-height: 160px; resize: none;
+      line-height: 1.6; margin-bottom: 12px;
+    }
+    .export-btns { display: flex; gap: 8px; margin-bottom: 10px; }
+    .ex-btn {
+      flex: 1; padding: 13px 8px; border-radius: 12px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      font-family: var(--font); border: none;
+    }
+    .ex-btn.copy  { background: var(--accentDim); color: var(--accent); border: 1px solid rgba(74,222,128,0.3); }
+    .ex-btn.share { background: #1a2340; color: #7dd3fc; border: 1px solid rgba(125,211,252,0.3); }
+    .ex-btn.close { background: var(--dangerDim); color: var(--danger); border: 1px solid rgba(248,113,113,0.3); }
+
+    /* ══════════ FOOTER & BADGE ══════════ */
+    #footer { text-align: center; font-size: 11px; color: var(--muted); margin-top: 16px; padding: 0 16px; line-height: 1.7; }
+    #save-badge {
+      position: fixed; bottom: 90px; left: 50%;
+      transform: translateX(-50%);
+      background: #166534; color: var(--accent);
+      padding: 10px 24px; border-radius: 24px;
+      font-size: 14px; font-weight: 700;
+      pointer-events: none; z-index: 200;
+      border: 1px solid rgba(74,222,128,0.4);
+      white-space: nowrap; display: none;
+    }
+    @keyframes pop {
+      0%   { opacity:1; transform:translateX(-50%) scale(1); }
+      30%  { opacity:1; transform:translateX(-50%) scale(1.08); }
+      100% { opacity:0; transform:translateX(-50%) scale(0.93); }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="save-badge">✓ Saved to device</div>
+
+  <!-- HEADER -->
+  <div id="header">
+    <div id="header-top">
+      <span id="logo">🛒</span>
+      <input id="trip-title" type="text" placeholder="Trip name…" value="Weekly Shop"/>
+      <button class="icon-btn" id="save-btn"  title="Save">💾</button>
+      <button class="icon-btn" id="clear-btn" title="Clear all">🗑️</button>
+    </div>
+    <div id="totals-bar">
+      <div class="chip">
+        <div class="chip-lbl">Budget</div>
+        <div class="chip-val" id="chip-budget" style="color:var(--warn)">R0.00</div>
+      </div>
+      <div class="chip">
+        <div class="chip-lbl">Actual</div>
+        <div class="chip-val" id="chip-actual" style="color:var(--accent)">R0.00</div>
+      </div>
+      <div class="chip">
+        <div class="chip-lbl">Diff</div>
+        <div class="chip-val" id="chip-diff" style="color:var(--muted)">R0.00</div>
+      </div>
+    </div>
+    <div id="prog-wrap">
+      <div id="prog-track"><div id="prog-fill"></div></div>
+      <span id="prog-lbl">0/0 in basket</span>
+    </div>
+  </div>
+
+  <!-- BOOKMARK TIP FOR BRAVE -->
+  <div id="bookmark-tip">
+    <span class="tip-icon">📌</span>
+    <span class="tip-text">
+      <b>Quick access tip for Brave:</b> Tap the <b>star ★</b> in Brave's address bar to bookmark this page. Next time, tap the <b>three dots ⋮ → Bookmarks</b> to open it instantly. Your list will always be there!
+    </span>
+    <button id="tip-close" title="Dismiss">×</button>
+  </div>
+
+  <!-- ITEM LIST -->
+  <div id="item-list"></div>
+
+  <!-- BUTTONS ROW -->
+  <div id="btn-row">
+    <button id="add-btn">＋ Add Item</button>
+    <button id="share-btn" title="Export / Share list">📤</button>
+  </div>
+
+  <!-- SUMMARY -->
+  <div id="summary">
+    <div class="sum-row">
+      <span class="sum-lbl">Total Budget</span>
+      <span class="sum-val" id="sum-budget" style="color:var(--warn)">R0.00</span>
+    </div>
+    <div class="sum-row">
+      <span class="sum-lbl">Total Actual</span>
+      <span class="sum-val" id="sum-actual" style="color:var(--accent)">R0.00</span>
+    </div>
+    <div class="sum-row" id="sum-basket-row" style="display:none">
+      <span class="sum-lbl" id="sum-basket-lbl">In basket</span>
+      <span class="sum-val" id="sum-basket" style="color:var(--muted)">R0.00</span>
+    </div>
+    <div class="divider"></div>
+    <div class="sum-row">
+      <span class="sum-lbl lg" id="sum-diff-lbl">On Budget</span>
+      <span class="sum-val lg" id="sum-diff" style="color:var(--muted)">+R0.00</span>
+    </div>
+  </div>
+
+  <div id="footer">
+    ✓ Works fully offline · Your list saves automatically<br>
+    Tap 📤 to export or share your list
+  </div>
+
+</div>
+
+<!-- EXPORT SHEET -->
+<div id="export-overlay">
+  <div id="export-sheet">
+    <h3>📋 Export / Share List</h3>
+    <textarea id="export-text" readonly></textarea>
+    <div class="export-btns">
+      <button class="ex-btn copy"  id="copy-btn">📋 Copy</button>
+      <button class="ex-btn share" id="native-share-btn">📤 Share</button>
+    </div>
+    <div class="export-btns">
+      <button class="ex-btn close" id="close-export-btn">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+const KEY = 'shopping_v4';
+let state = { title: 'Weekly Shop', items: [] };
+
+function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function newItem() { return { id: uid(), desc: '', qty: 1, budget: '', actual: '', inBasket: false }; }
+
+function load() {
+  try { const r = localStorage.getItem(KEY); if (r) state = JSON.parse(r); }
+  catch(e) {}
+  if (!state.items || !state.items.length) state.items = [newItem()];
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+/* ── Format ── */
+function fmt(n) { return 'R' + Math.abs(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function dColor(d) { return d < 0 ? 'var(--accent)' : d > 0 ? 'var(--danger)' : 'var(--muted)'; }
+
+/* ── Flash badge ── */
+function flashSave() {
+  const b = document.getElementById('save-badge');
+  b.style.display = 'block'; b.style.animation = 'none'; b.offsetHeight;
+  b.style.animation = 'pop 1.5s ease forwards';
+  setTimeout(() => b.style.display = 'none', 1550);
+}
+
+/* ── Build export text ── */
+function buildExportText() {
+  const lines = [];
+  const now = new Date().toLocaleDateString('en-ZA');
+  lines.push(`🛒 ${state.title}  —  ${now}`);
+  lines.push('─'.repeat(40));
+
+  let bTot = 0, aTot = 0;
+  state.items.forEach((item, i) => {
+    const desc   = item.desc || '(no name)';
+    const qty    = parseInt(item.qty) || 1;
+    const budget = parseFloat(item.budget) || 0;
+    const actual = parseFloat(item.actual) || 0;
+    const bLine  = budget * qty;
+    const aLine  = actual * qty;
+    const diff   = aLine - bLine;
+    bTot += bLine; aTot += aLine;
+    const tick   = item.inBasket ? '✓' : '○';
+    const hasPrices = item.budget !== '' || item.actual !== '';
+    lines.push(`${tick} ${i+1}. ${desc}${qty > 1 ? ` (x${qty})` : ''}`);
+    if (hasPrices) {
+      lines.push(`   Budget: ${fmt(bLine)}  Actual: ${fmt(aLine)}  Diff: ${diff >= 0 ? '+' : ''}${fmt(diff)}`);
+    }
+  });
+
+  lines.push('─'.repeat(40));
+  const diff = aTot - bTot;
+  lines.push(`Total Budget : ${fmt(bTot)}`);
+  lines.push(`Total Actual : ${fmt(aTot)}`);
+  lines.push(`Difference   : ${diff >= 0 ? '+' : ''}${fmt(diff)} ${diff > 0 ? '(over)' : diff < 0 ? '(under)' : ''}`);
+  return lines.join('\n');
+}
+
+/* ── Export sheet ── */
+function openExport() {
+  document.getElementById('export-text').value = buildExportText();
+  document.getElementById('export-overlay').classList.add('open');
+}
+function closeExport() {
+  document.getElementById('export-overlay').classList.remove('open');
+}
+
+document.getElementById('share-btn').onclick   = openExport;
+document.getElementById('close-export-btn').onclick = closeExport;
+document.getElementById('export-overlay').onclick = e => {
+  if (e.target === document.getElementById('export-overlay')) closeExport();
+};
+
+document.getElementById('copy-btn').onclick = () => {
+  const text = document.getElementById('export-text').value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  }).catch(() => {
+    // fallback for older browsers
+    document.getElementById('export-text').select();
+    document.execCommand('copy');
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  });
+};
+
+document.getElementById('native-share-btn').onclick = () => {
+  const text = buildExportText();
+  if (navigator.share) {
+    navigator.share({ title: state.title, text: text })
+      .catch(() => {});
+  } else {
+    // fallback: open WhatsApp/SMS
+    const encoded = encodeURIComponent(text);
+    window.open('https://wa.me/?text=' + encoded, '_blank');
+  }
+};
+
+/* ── Bookmark tip dismiss ── */
+document.getElementById('tip-close').onclick = () => {
+  document.getElementById('bookmark-tip').style.display = 'none';
+  try { localStorage.setItem('tip_dismissed', '1'); } catch(e) {}
+};
+// Hide tip if already dismissed
+try { if (localStorage.getItem('tip_dismissed')) document.getElementById('bookmark-tip').style.display = 'none'; }
+catch(e) {}
+
+/* ── Create card element ── */
+function makeCard(item) {
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  card.dataset.id = item.id;
+
+  const top = document.createElement('div');
+  top.className = 'card-top';
+
+  const tick = document.createElement('div');
+  tick.className = 'tick'; tick.textContent = '✓';
+  tick.onclick = () => {
+    const it = state.items.find(i => i.id === card.dataset.id);
+    if (!it) return;
+    it.inBasket = !it.inBasket;
+    save(); refreshCard(card, it); updateTotals(); reorder();
+  };
+
+  const descIn = document.createElement('input');
+  descIn.type = 'text'; descIn.className = 'desc-input';
+  descIn.placeholder = 'Item description (e.g. Bread)';
+  descIn.oninput = e => {
+    const it = state.items.find(i => i.id === card.dataset.id);
+    if (it) { it.desc = e.target.value; save(); }
+  };
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'del-btn'; delBtn.textContent = '×';
+  delBtn.onclick = () => {
+    state.items = state.items.filter(i => i.id !== card.dataset.id);
+    save(); card.remove(); updateTotals();
+  };
+
+  top.append(tick, descIn, delBtn);
+
+  const nums = document.createElement('div');
+  nums.className = 'card-nums';
+
+  function numGroup(label, cls, isPrice) {
+    const g = document.createElement('div'); g.className = 'num-group';
+    const lbl = document.createElement('div'); lbl.className = 'num-lbl'; lbl.textContent = label;
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.className = 'num-input ' + cls; inp.min = '0';
+    if (isPrice) { inp.step = '0.01'; inp.placeholder = '0.00'; }
+    else { inp.min = '1'; inp.placeholder = '1'; }
+    g.append(lbl, inp);
+    return { g, inp };
+  }
+
+  const { g: qtyG,    inp: qtyIn    } = numGroup('Qty',    'qty-in',   false);
+  const { g: budgetG, inp: budgetIn } = numGroup('Budget', 'price-in', true);
+  const { g: actualG, inp: actualIn } = numGroup('Actual', 'price-in', true);
+
+  qtyIn.oninput    = e => { const it = state.items.find(i=>i.id===card.dataset.id); if(it){it.qty=e.target.value;save();refreshCard(card,it);updateTotals();} };
+  budgetIn.oninput = e => { const it = state.items.find(i=>i.id===card.dataset.id); if(it){it.budget=e.target.value;save();refreshCard(card,it);updateTotals();} };
+  actualIn.oninput = e => { const it = state.items.find(i=>i.id===card.dataset.id); if(it){it.actual=e.target.value;save();refreshCard(card,it);updateTotals();} };
+
+  const diffG = document.createElement('div'); diffG.className = 'diff-group';
+  const diffLbl = document.createElement('div'); diffLbl.className = 'num-lbl'; diffLbl.textContent = 'Diff';
+  const diffVal = document.createElement('div'); diffVal.className = 'diff-val'; diffVal.textContent = '—';
+  diffG.append(diffLbl, diffVal);
+
+  nums.append(qtyG, budgetG, actualG, diffG);
+
+  const bar = document.createElement('div'); bar.className = 'dot-bar';
+  card.append(top, nums, bar);
+  return card;
+}
+
+/* ── Refresh card display ── */
+function refreshCard(card, item) {
+  const tick    = card.querySelector('.tick');
+  const descIn  = card.querySelector('.desc-input');
+  const qtyIn   = card.querySelector('.qty-in');
+  const prices  = card.querySelectorAll('.price-in');
+  const budgetIn = prices[0], actualIn = prices[1];
+  const diffVal = card.querySelector('.diff-val');
+  const bar     = card.querySelector('.dot-bar');
+
+  if (item.inBasket) { card.classList.add('in-basket'); tick.classList.add('checked'); descIn.classList.add('struck'); }
+  else               { card.classList.remove('in-basket'); tick.classList.remove('checked'); descIn.classList.remove('struck'); }
+
+  if (document.activeElement !== descIn)   descIn.value   = item.desc;
+  if (document.activeElement !== qtyIn)    qtyIn.value    = item.qty;
+  if (document.activeElement !== budgetIn) budgetIn.value = item.budget;
+  if (document.activeElement !== actualIn) actualIn.value = item.actual;
+
+  const b = (parseFloat(item.budget)||0) * (parseInt(item.qty)||1);
+  const a = (parseFloat(item.actual)||0) * (parseInt(item.qty)||1);
+  const d = a - b;
+  const has = item.budget !== '' || item.actual !== '';
+
+  diffVal.textContent = has ? (d >= 0 ? '+' : '-') + fmt(d) : '—';
+  diffVal.style.color = has ? dColor(d) : 'var(--border)';
+  bar.style.background = item.inBasket ? 'var(--accent)' : has ? (d>0?'var(--danger)':d<0?'var(--accent)':'var(--warn)') : 'var(--border)';
+}
+
+/* ── Reorder: unchecked first ── */
+function reorder() {
+  const list = document.getElementById('item-list');
+  [...state.items].sort((a,b)=>a.inBasket===b.inBasket?0:a.inBasket?1:-1)
+    .forEach(item => { const c=list.querySelector(`.item-card[data-id="${item.id}"]`); if(c) list.appendChild(c); });
+}
+
+/* ── Full render ── */
+function render() {
+  const list = document.getElementById('item-list');
+  list.innerHTML = '';
+  [...state.items].sort((a,b)=>a.inBasket===b.inBasket?0:a.inBasket?1:-1)
+    .forEach(item => { const c=makeCard(item); refreshCard(c,item); list.appendChild(c); });
+  document.getElementById('trip-title').value = state.title;
+  updateTotals();
+}
+
+/* ── Update totals ── */
+function updateTotals() {
+  const items = state.items;
+  const bTot = items.reduce((s,i)=>s+(parseFloat(i.budget)||0)*(parseInt(i.qty)||1),0);
+  const aTot = items.reduce((s,i)=>s+(parseFloat(i.actual)||0)*(parseInt(i.qty)||1),0);
+  const inB  = items.filter(i=>i.inBasket);
+  const bAmt = inB.reduce((s,i)=>s+((parseFloat(i.actual)||parseFloat(i.budget)||0)*(parseInt(i.qty)||1)),0);
+  const diff = aTot - bTot;
+  const cN = inB.length, tN = items.length;
+
+  document.getElementById('chip-budget').textContent = fmt(bTot);
+  document.getElementById('chip-actual').textContent = fmt(aTot);
+  const cd = document.getElementById('chip-diff');
+  cd.textContent = (diff>=0?'+':'-')+fmt(diff); cd.style.color = dColor(diff);
+
+  document.getElementById('prog-fill').style.width = tN ? `${cN/tN*100}%` : '0%';
+  document.getElementById('prog-lbl').innerHTML = `${cN}/${tN} in basket` +
+    (cN>0 ? ` <span style="color:var(--accent)">· ${fmt(bAmt)}</span>` : '');
+
+  document.getElementById('sum-budget').textContent = fmt(bTot);
+  document.getElementById('sum-actual').textContent = fmt(aTot);
+
+  const br = document.getElementById('sum-basket-row');
+  if (cN > 0) { br.style.display='flex'; document.getElementById('sum-basket-lbl').textContent=`In basket (${cN} items)`; document.getElementById('sum-basket').textContent=fmt(bAmt); }
+  else br.style.display = 'none';
+
+  document.getElementById('sum-diff-lbl').textContent = diff>0?'Over Budget':diff<0?'Under Budget':'On Budget';
+  const dv = document.getElementById('sum-diff');
+  dv.textContent = (diff>=0?'+':'-')+fmt(diff); dv.style.color = dColor(diff);
+}
+
+/* ── Listeners ── */
+document.getElementById('trip-title').oninput = e => { state.title = e.target.value; save(); };
+document.getElementById('save-btn').onclick   = () => { save(); flashSave(); };
+document.getElementById('clear-btn').onclick  = () => {
+  if (confirm('Clear all items and start fresh?')) { state={title:'Weekly Shop',items:[newItem()]}; save(); render(); }
+};
+document.getElementById('add-btn').onclick = () => {
+  const item = newItem(); state.items.push(item); save();
+  const list = document.getElementById('item-list');
+  const first = list.querySelector('.item-card.in-basket');
+  const card = makeCard(item); refreshCard(card, item);
+  if (first) list.insertBefore(card, first); else list.appendChild(card);
+  updateTotals();
+  setTimeout(() => card.querySelector('.desc-input').focus(), 80);
+  setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'center' }), 100);
+};
+
+/* ── Boot ── */
+load(); render();
+</script>
+</body>
+</html>
