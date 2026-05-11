@@ -203,16 +203,13 @@
 /* ════════════════════════════════
    CONFIG — JSONBin cloud sync
 ════════════════════════════════ */
-const JSONBIN_KEY = '$2a$10$f26AW6V6oWw2fQNOi2Acs.XwqGiYy10inSpEv1nAUZktPxenFv1IW';
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/bins';
-const LOCAL_KEY   = 'shopping_v5';
-const BIN_ID_KEY  = 'shopping_bin_id';
+const SYNC_URL  = 'https://script.google.com/macros/s/AKfycbzRhCGkUoLhcgvmQYTMlAgkntW7YJwvd7H6wk4YcQqyEh46-bzfkFphsJgdQYLvA4-qYw/exec';
+const LOCAL_KEY = 'shopping_v5';
 
 /* ════════════════════════════════
    STATE
 ════════════════════════════════ */
 let state   = { title: 'Weekly Shop', items: [] };
-let binId   = null;
 let syncTimer = null;
 
 function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2,7); }
@@ -222,7 +219,6 @@ function localLoad() {
   try {
     const r = localStorage.getItem(LOCAL_KEY);
     if (r) state = JSON.parse(r);
-    binId = localStorage.getItem(BIN_ID_KEY) || null;
   } catch(e) {}
   if (!state.items || !state.items.length) state.items = [newItem()];
 }
@@ -230,7 +226,6 @@ function localLoad() {
 function localSave() {
   try {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
-    if (binId) localStorage.setItem(BIN_ID_KEY, binId);
   } catch(e) {}
 }
 
@@ -250,34 +245,8 @@ function setSyncStatus(status, label) {
 async function cloudPush() {
   setSyncStatus('syncing', 'Saving…');
   try {
-    if (!binId) {
-      // First time — create a new bin
-      const res = await fetch(JSONBIN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': JSONBIN_KEY,
-          'X-Bin-Name': 'ShoppingTracker',
-          'X-Bin-Private': 'true'
-        },
-        body: JSON.stringify(state)
-      });
-      if (!res.ok) throw new Error('Create failed');
-      const data = await res.json();
-      binId = data.metadata.id;
-      localStorage.setItem(BIN_ID_KEY, binId);
-    } else {
-      // Update existing bin
-      const res = await fetch(`${JSONBIN_URL}/${binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': JSONBIN_KEY
-        },
-        body: JSON.stringify(state)
-      });
-      if (!res.ok) throw new Error('Update failed');
-    }
+    const res = await fetch(SYNC_URL, { method: 'POST', body: JSON.stringify(state) });
+    if (!res.ok) throw new Error('Push failed');
     setSyncStatus('synced', 'Synced ✓');
   } catch(e) {
     setSyncStatus('error', 'Sync failed');
@@ -285,18 +254,12 @@ async function cloudPush() {
 }
 
 async function cloudPull() {
-  if (!binId) return false;
   setSyncStatus('syncing', 'Loading…');
   try {
-    const res = await fetch(`${JSONBIN_URL}/${binId}/latest`, {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
-    });
+    const res = await fetch(SYNC_URL + '?t=' + Date.now());
     if (!res.ok) throw new Error('Pull failed');
     const data = await res.json();
-    state = data.record;
-    if (!state.items || !state.items.length) state.items = [newItem()];
-    localSave();
-    render();
+    if (data && data.items) { state = data; if (!state.items || !state.items.length) state.items = [newItem()]; localSave(); render(); }
     setSyncStatus('synced', 'Synced ✓');
     return true;
   } catch(e) {
@@ -529,12 +492,7 @@ document.getElementById('add-btn').onclick = () => {
 localLoad();
 render();
 // On load, pull latest from cloud if we have a bin
-if (binId) {
-  cloudPull();
-} else {
-  setSyncStatus('syncing', 'Setting up…');
-  cloudPush(); // Create the bin for the first time
-}
+cloudPull();
 </script>
 </body>
 </html>
